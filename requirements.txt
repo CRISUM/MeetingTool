@@ -3,4 +3,5 @@ dashscope
 gradio
 pydub
 pyannote.audio
-torch
+# torch 不在这里装！请手动安装GPU版：
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121

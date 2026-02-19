@@ -23,38 +23,46 @@ WHISPER_MODEL = "medium"
 WHISPER_LANGUAGE = "zh"
 CHUNK_DURATION_SECONDS = 10 * 60
 
-# 说话人区分（Speaker Diarization）
-# 需要 Hugging Face token：https://huggingface.co/settings/tokens
-# 并且需要在以下页面同意使用协议：
-#   https://huggingface.co/pyannote/speaker-diarization-3.1
-#   https://huggingface.co/pyannote/segmentation-3.0
+# ============================================================
+# 说话人区分
+# ============================================================
+
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
 # ============================================================
-# 目录配置（全部在脚本目录下）
+# 目录配置
 # ============================================================
 
-# 输入：用户上传的原始录音会复制到这里
 INPUT_DIR = BASE_DIR / "data" / "input"
-
-# 中间文件：音频切片、分段转写结果
 TEMP_DIR = BASE_DIR / "data" / "temp"
-
-# 输出：最终的转写全文和会议总结
 OUTPUT_DIR = BASE_DIR / "data" / "output"
-
-# 任务记录：持久化 completed_tasks
 TASKS_DB_PATH = BASE_DIR / "data" / "tasks.json"
+PROMPTS_DIR = BASE_DIR / "data" / "prompts"
+LOGS_DIR = BASE_DIR / "data" / "logs"
 
-# 确保目录存在
-for d in [INPUT_DIR, TEMP_DIR, OUTPUT_DIR]:
+for d in [INPUT_DIR, TEMP_DIR, OUTPUT_DIR, PROMPTS_DIR, LOGS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# 总结 Prompt
+# 日志配置
 # ============================================================
 
-SINGLE_SUMMARY_PROMPT = """你是一个专业的会议记录助手。请根据以下会议转写文本，生成一份结构化的会议纪要。
+LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
+LOG_RETENTION_DAYS = 30
+
+# ============================================================
+# Prompt 文件管理
+# ============================================================
+
+PROMPT_FILES = {
+    "single_summary": PROMPTS_DIR / "single_summary.txt",
+    "chunk_extract": PROMPTS_DIR / "chunk_extract.txt",
+    "merge_summary": PROMPTS_DIR / "merge_summary.txt",
+}
+
+# 默认 prompt（首次运行时写入文件）
+DEFAULT_PROMPTS = {
+    "single_summary": """你是一个专业的会议记录助手。请根据以下会议转写文本，生成一份结构化的会议纪要。
 
 要求：
 1. 会议主题/背景概述
@@ -69,15 +77,13 @@ SINGLE_SUMMARY_PROMPT = """你是一个专业的会议记录助手。请根据�
 ---
 会议转写文本：
 
-{transcript}
-"""
+{transcript}""",
 
-CHUNK_EXTRACT_PROMPT = """请提取以下会议文本片段的关键要点，保留重要细节、数据和决策内容：
+    "chunk_extract": """请提取以下会议文本片段的关键要点，保留重要细节、数据和决策内容：
 
-{chunk}
-"""
+{chunk}""",
 
-MERGE_SUMMARY_PROMPT = """你是一个专业的会议记录助手。以下是多段会议录音的要点摘要，它们属于同一个会议/主题。
+    "merge_summary": """你是一个专业的会议记录助手。以下是多段会议录音的要点摘要，它们属于同一个会议/主题。
 请合并这些内容，生成一份完整的结构化会议纪要。
 
 要求：
@@ -93,5 +99,65 @@ MERGE_SUMMARY_PROMPT = """你是一个专业的会议记录助手。以下是多
 ---
 各段要点：
 
-{summaries}
-"""
+{summaries}""",
+}
+
+# prompt 中必须包含的占位符
+PROMPT_REQUIRED_PLACEHOLDERS = {
+    "single_summary": ["{transcript}"],
+    "chunk_extract": ["{chunk}"],
+    "merge_summary": ["{summaries}"],
+}
+
+
+def init_prompt_files():
+    """首次运行时用默认 prompt 创建文件"""
+    for key, path in PROMPT_FILES.items():
+        if not path.exists():
+            path.write_text(DEFAULT_PROMPTS[key], encoding="utf-8")
+
+
+def load_prompt(key: str) -> str:
+    """
+    从文件读取 prompt，带占位符校验。
+    缺少必要占位符时回退到默认值并警告。
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    path = PROMPT_FILES.get(key)
+    if not path or not path.exists():
+        logger.warning(f"Prompt 文件不存在: {key}，使用默认值")
+        return DEFAULT_PROMPTS.get(key, "")
+
+    content = path.read_text(encoding="utf-8")
+
+    # 校验占位符
+    required = PROMPT_REQUIRED_PLACEHOLDERS.get(key, [])
+    missing = [p for p in required if p not in content]
+    if missing:
+        logger.warning(
+            f"Prompt '{key}' 缺少必要占位符 {missing}，回退到默认值"
+        )
+        return DEFAULT_PROMPTS.get(key, "")
+
+    return content
+
+
+def save_prompt(key: str, content: str) -> tuple[bool, str]:
+    """保存 prompt 到文件，返回 (成功与否, 消息)"""
+    required = PROMPT_REQUIRED_PLACEHOLDERS.get(key, [])
+    missing = [p for p in required if p not in content]
+    if missing:
+        return False, f"缺少必要占位符: {', '.join(missing)}"
+
+    path = PROMPT_FILES.get(key)
+    if not path:
+        return False, f"未知的 prompt 类型: {key}"
+
+    path.write_text(content, encoding="utf-8")
+    return True, "保存成功"
+
+
+# 启动时初始化 prompt 文件
+init_prompt_files()
