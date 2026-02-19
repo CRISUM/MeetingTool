@@ -1,0 +1,4 @@
+openai-whisper
+dashscope
+gradio
+pydub
