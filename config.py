@@ -16,18 +16,14 @@ DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 QWEN_MODEL = "qwen-plus"
 
 # ============================================================
-# Whisper 配置
+# FunASR 配置
 # ============================================================
 
-WHISPER_MODEL = "medium"
-WHISPER_LANGUAGE = "zh"
-CHUNK_DURATION_SECONDS = 10 * 60
-
-# ============================================================
-# 说话人区分
-# ============================================================
-
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+FUNASR_MODEL = "paraformer-zh"
+FUNASR_VAD_MODEL = "fsmn-vad"
+FUNASR_PUNC_MODEL = "ct-punc"
+FUNASR_SPK_MODEL = "cam++"
+CHUNK_DURATION_SECONDS = 30 * 60   # FunASR 内置 VAD，chunk 可以更长
 
 # ============================================================
 # 目录配置

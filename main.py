@@ -14,11 +14,6 @@ import config
 from logger import setup_logging, set_log_level
 from transcriber import transcribe_audio
 from summarizer import summarize_single, summarize_merged
-from diarizer import (
-    check_diarization_available,
-    diarize_audio,
-    align_transcript_with_speakers,
-)
 
 # 初始化日志
 setup_logging()
@@ -86,7 +81,7 @@ logger.info(f"已加载 {len(completed_tasks)} 个历史任务")
 # ============================================================
 
 def process_files(
-    files, model_name, enable_diarization, diarization_fallback,
+    files, enable_speaker,
     progress=gr.Progress(),
 ):
     """处理上传的音频文件（批量）"""
@@ -101,16 +96,8 @@ def process_files(
         results.append("⚠️ 未检测到 API Key，将只进行转写，不生成总结。\n")
         logger.warning("未检测到 API Key，跳过总结")
 
-    # 检查说话人区分可用性
-    if enable_diarization:
-        diar_ok, diar_msg = check_diarization_available()
-        if not diar_ok:
-            msg = f"⚠️ 说话人区分不可用: {diar_msg}"
-            results.append(msg)
-            logger.warning(msg)
-            if diarization_fallback == "停止处理":
-                return msg + "\n\n已停止处理。", "", ""
-            enable_diarization = False
+    if enable_speaker:
+        results.append("ℹ️ 已启用说话人区分（cam++）。注意：声音相似时识别效果有限。\n")
 
     for file_idx, file in enumerate(files):
         file_path = file.name if hasattr(file, "name") else str(file)
@@ -123,55 +110,15 @@ def process_files(
             desc=f"[{file_idx+1}/{total_files}] 处理: {file_display_name}",
         )
 
-        # --- 说话人区分（如果启用） ---
-        diarization_segments = None
-        task_name = None
-
-        if enable_diarization:
-            def diar_progress(ratio, msg):
-                overall = (file_idx + ratio * 0.3) / total_files
-                progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
-
-            try:
-                # 生成 task_name 供缓存使用
-                file_stem = Path(file_path).stem
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                task_name = f"{file_stem}_{timestamp}"
-
-                diarization_segments = diarize_audio(
-                    audio_path=file_path,
-                    task_name=task_name,
-                    progress_callback=diar_progress,
-                )
-                logger.info(
-                    f"说话人区分成功: {len(diarization_segments)} 个片段"
-                )
-            except Exception as e:
-                error_msg = f"说话人区分失败: {e}"
-                logger.error(error_msg, exc_info=True)
-
-                if diarization_fallback == "停止处理":
-                    results.append(f"❌ {file_display_name}: {error_msg}")
-                    results.append("已停止处理（用户设置：说话人区分失败时停止）")
-                    return "\n".join(results), "", ""
-                else:
-                    results.append(
-                        f"⚠️ {file_display_name}: {error_msg}，切换为普通转写"
-                    )
-                    diarization_segments = None
-
-        # --- 转写 ---
+        # --- 转写（FunASR 一步完成 ASR + VAD + 标点 + 说话人） ---
         def transcribe_progress(ratio, msg):
-            if enable_diarization and diarization_segments is not None:
-                overall = (file_idx + 0.3 + ratio * 0.4) / total_files
-            else:
-                overall = (file_idx + ratio * 0.7) / total_files
+            overall = (file_idx + ratio * 0.7) / total_files
             progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
 
         try:
             transcript, output_dir = transcribe_audio(
                 audio_path=file_path,
-                model_name=model_name,
+                enable_speaker=enable_speaker,
                 progress_callback=transcribe_progress,
             )
         except Exception as e:
@@ -179,37 +126,11 @@ def process_files(
             results.append(f"❌ {file_display_name}: 转写失败 - {e}")
             continue
 
-        # --- 说话人对齐 ---
-        if diarization_segments is not None:
-            try:
-                segments_path = output_dir / "segments.json"
-                if segments_path.exists():
-                    whisper_segments = json.loads(
-                        segments_path.read_text(encoding="utf-8")
-                    )
-                    annotated_text = align_transcript_with_speakers(
-                        whisper_segments, diarization_segments
-                    )
-                    # 保存带标注版本
-                    (output_dir / "转写全文_说话人标注.txt").write_text(
-                        annotated_text, encoding="utf-8"
-                    )
-                    # 总结用带标注的文本
-                    transcript = annotated_text
-                    logger.info("说话人对齐完成")
-                else:
-                    logger.warning("未找到 segments.json，跳过说话人对齐")
-            except Exception as e:
-                logger.error(f"说话人对齐失败: {e}", exc_info=True)
-
         # --- 总结（仅在有 API Key 时执行） ---
         summary = ""
         if has_api:
             def summary_progress(ratio, msg):
-                if enable_diarization and diarization_segments is not None:
-                    overall = (file_idx + 0.7 + ratio * 0.3) / total_files
-                else:
-                    overall = (file_idx + 0.7 + ratio * 0.3) / total_files
+                overall = (file_idx + 0.7 + ratio * 0.3) / total_files
                 progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
 
             try:
@@ -224,8 +145,7 @@ def process_files(
             summary_path.write_text(summary, encoding="utf-8")
 
         # 记录任务
-        display_name = file_display_name
-        completed_tasks[display_name] = {
+        completed_tasks[file_display_name] = {
             "output_dir": str(output_dir),
             "summary": summary,
             "timestamp": datetime.now().isoformat(),
@@ -233,12 +153,11 @@ def process_files(
         save_tasks(completed_tasks)
 
         status_icon = "✅" if summary else "📝"
-        results.append(f"{status_icon} {display_name} → {output_dir}")
-        logger.info(f"任务完成: {display_name}")
+        results.append(f"{status_icon} {file_display_name} → {output_dir}")
+        logger.info(f"任务完成: {file_display_name}")
 
     progress(1.0, desc="全部完成")
 
-    # 返回最后一个文件的结果作为预览
     last_task = list(completed_tasks.values())[-1] if completed_tasks else None
     if last_task:
         transcript_text = get_transcript(last_task)
@@ -379,7 +298,7 @@ def build_ui():
 
         if check_api_key():
             gr.Markdown(
-                "✅ API Key 已配置 | 上传录音文件 → Whisper本地转写 → 通义千问AI总结"
+                "✅ API Key 已配置 | 上传录音文件 → FunASR本地转写 → 通义千问AI总结"
             )
         else:
             gr.Markdown(
@@ -398,22 +317,10 @@ def build_ui():
                         type="filepath",
                     )
                     with gr.Column():
-                        model_choice = gr.Dropdown(
-                            choices=["tiny", "base", "small", "medium", "large"],
-                            value=config.WHISPER_MODEL,
-                            label="Whisper 模型",
-                            info="medium推荐，large更准但更慢",
-                        )
                         diarization_toggle = gr.Checkbox(
-                            label="🗣️ 启用说话人区分",
+                            label="🗣️ 启用说话人区分（cam++）",
                             value=False,
-                            info="识别不同说话人（需要HF_TOKEN）",
-                        )
-                        diarization_fallback = gr.Radio(
-                            choices=["继续转写（不标注说话人）", "停止处理"],
-                            value="继续转写（不标注说话人）",
-                            label="说话人区分失败时",
-                            visible=True,
+                            info="识别不同说话人。注意：声音相似时效果有限",
                         )
                         run_btn = gr.Button(
                             "🚀 开始处理", variant="primary", size="lg"
@@ -445,12 +352,7 @@ def build_ui():
 
                 run_btn.click(
                     fn=process_files,
-                    inputs=[
-                        file_input,
-                        model_choice,
-                        diarization_toggle,
-                        diarization_fallback,
-                    ],
+                    inputs=[file_input, diarization_toggle],
                     outputs=[status_output, transcript_output, summary_output],
                 ).then(
                     fn=lambda s: s,
@@ -691,41 +593,14 @@ def build_ui():
                 save_key_btn = gr.Button("💾 保存 API Key（仅本次会话有效）")
                 key_status = gr.Textbox(label="状态", interactive=False)
 
-                gr.Markdown("### 说话人区分配置")
-                hf_token_input = gr.Textbox(
-                    label="Hugging Face Token",
-                    value=config.HF_TOKEN,
-                    type="password",
-                    placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxx",
-                )
-                save_hf_btn = gr.Button("💾 保存 HF Token（仅本次会话有效）")
-                hf_status = gr.Textbox(label="状态", interactive=False)
-                gr.Markdown(
-                    "说话人区分需要:\n"
-                    "1. 注册 [Hugging Face](https://huggingface.co) 获取 Token\n"
-                    "2. 同意模型协议: "
-                    "[speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1)、"
-                    "[segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0)、"
-                    "[speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)"
-                )
-
                 def save_api_key(key):
                     config.DASHSCOPE_API_KEY = key
                     return "✅ 已保存" if key else "⚠️ 为空"
-
-                def save_hf_token(token):
-                    config.HF_TOKEN = token
-                    return "✅ 已保存" if token else "⚠️ 为空"
 
                 save_key_btn.click(
                     fn=save_api_key,
                     inputs=[api_key_input],
                     outputs=[key_status],
-                )
-                save_hf_btn.click(
-                    fn=save_hf_token,
-                    inputs=[hf_token_input],
-                    outputs=[hf_status],
                 )
 
                 # --- Prompt 编辑 ---
