@@ -4,7 +4,6 @@
 """
 
 import json
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -37,13 +36,15 @@ def load_tasks() -> dict[str, dict]:
 
 
 def save_tasks(tasks: dict[str, dict]):
-    """将任务记录保存到磁盘"""
+    """将任务记录保存到磁盘（存完整summary用于查看）"""
     serializable = {}
     for name, task in tasks.items():
         serializable[name] = {
             "output_dir": str(task["output_dir"]),
-            "summary_preview": task.get("summary", "")[:500],
+            "summary": task.get("summary", ""),
             "timestamp": task.get("timestamp", ""),
+            "has_transcript": bool(get_transcript(task)),
+            "has_summary": bool(task.get("summary", "")),
         }
     config.TASKS_DB_PATH.write_text(
         json.dumps(serializable, ensure_ascii=False, indent=2),
@@ -57,6 +58,19 @@ def get_transcript(task: dict) -> str:
     if transcript_path.exists():
         return transcript_path.read_text(encoding="utf-8")
     return ""
+
+
+def get_summary(task: dict) -> str:
+    """读取总结（优先从文件，fallback到task记录）"""
+    summary_path = Path(task["output_dir"]) / "会议总结.md"
+    if summary_path.exists():
+        return summary_path.read_text(encoding="utf-8")
+    return task.get("summary", "")
+
+
+def check_api_key() -> bool:
+    """检查API Key是否已配置"""
+    return bool(config.DASHSCOPE_API_KEY and config.DASHSCOPE_API_KEY.strip())
 
 
 # 启动时加载历史任务
@@ -74,6 +88,10 @@ def process_files(files, model_name, progress=gr.Progress()):
 
     results = []
     total_files = len(files)
+    has_api = check_api_key()
+
+    if not has_api:
+        results.append("⚠️ 未检测到 API Key，将只进行转写，不生成总结。\n")
 
     for file_idx, file in enumerate(files):
         file_path = file.name if hasattr(file, "name") else str(file)
@@ -98,19 +116,23 @@ def process_files(files, model_name, progress=gr.Progress()):
             results.append(f"❌ {Path(file_path).name}: 转写失败 - {e}")
             continue
 
-        # --- 总结 ---
-        def summary_progress(ratio, msg):
-            overall = (file_idx + 0.7 + ratio * 0.3) / total_files
-            progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
+        # --- 总结（仅在有API Key时执行） ---
+        summary = ""
+        if has_api:
+            def summary_progress(ratio, msg):
+                overall = (file_idx + 0.7 + ratio * 0.3) / total_files
+                progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
 
-        try:
-            summary = summarize_single(transcript, progress_callback=summary_progress)
-        except Exception as e:
-            summary = f"⚠️ 总结生成失败: {e}"
+            try:
+                summary = summarize_single(
+                    transcript, progress_callback=summary_progress
+                )
+            except Exception as e:
+                summary = f"⚠️ 总结生成失败: {e}"
 
-        # 保存总结到输出目录
-        summary_path = output_dir / "会议总结.md"
-        summary_path.write_text(summary, encoding="utf-8")
+            # 保存总结到输出目录
+            summary_path = output_dir / "会议总结.md"
+            summary_path.write_text(summary, encoding="utf-8")
 
         # 记录任务并持久化
         display_name = Path(file_path).name
@@ -121,7 +143,8 @@ def process_files(files, model_name, progress=gr.Progress()):
         }
         save_tasks(completed_tasks)
 
-        results.append(f"✅ {display_name} → {output_dir}")
+        status_icon = "✅" if summary else "📝"
+        results.append(f"{status_icon} {display_name} → {output_dir}")
 
     progress(1.0, desc="全部完成")
 
@@ -134,7 +157,7 @@ def process_files(files, model_name, progress=gr.Progress()):
             if len(transcript_text) > 3000
             else transcript_text
         )
-        summary_preview = last_task.get("summary", "")
+        summary_preview = last_task.get("summary", "（未生成总结）")
     else:
         transcript_preview = ""
         summary_preview = ""
@@ -146,7 +169,10 @@ def process_files(files, model_name, progress=gr.Progress()):
 def merge_summarize(selected_files, progress=gr.Progress()):
     """对选中的文件进行合并总结"""
     if not selected_files:
-        return "请先选择要合并的文件"
+        return "请先选择要合并的文件", ""
+
+    if not check_api_key():
+        return "❌ 未检测到 API Key，无法生成合并总结。请在设置中配置。", ""
 
     transcripts = {}
     for fname in selected_files:
@@ -156,22 +182,25 @@ def merge_summarize(selected_files, progress=gr.Progress()):
                 transcripts[fname] = transcript
 
     if not transcripts:
-        return "所选文件没有转写结果"
+        return "所选文件没有转写结果", ""
 
     def merge_progress(ratio, msg):
         progress(ratio, desc=msg)
 
     try:
-        merged_summary = summarize_merged(transcripts, progress_callback=merge_progress)
+        merged_summary = summarize_merged(
+            transcripts, progress_callback=merge_progress
+        )
     except Exception as e:
-        return f"合并总结失败: {e}"
+        return f"合并总结失败: {e}", ""
 
     # 保存合并总结
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     merged_path = config.OUTPUT_DIR / f"合并总结_{timestamp}.md"
     merged_path.write_text(merged_summary, encoding="utf-8")
 
-    return f"📄 合并总结已保存: {merged_path}\n\n{merged_summary}"
+    status = f"📄 合并总结已保存: {merged_path}"
+    return status, merged_summary
 
 
 def rerun_summary(transcript_text, progress=gr.Progress()):
@@ -179,14 +208,87 @@ def rerun_summary(transcript_text, progress=gr.Progress()):
     if not transcript_text.strip():
         return "转写文本为空"
 
+    if not check_api_key():
+        return "❌ 未检测到 API Key，无法生成总结。请在设置中配置。"
+
     def summary_progress(ratio, msg):
         progress(ratio, desc=msg)
 
     try:
-        summary = summarize_single(transcript_text, progress_callback=summary_progress)
+        summary = summarize_single(
+            transcript_text, progress_callback=summary_progress
+        )
         return summary
     except Exception as e:
         return f"总结生成失败: {e}"
+
+
+# ============================================================
+# 任务管理
+# ============================================================
+
+def build_task_table() -> str:
+    """生成任务列表的Markdown表格"""
+    if not completed_tasks:
+        return "暂无任务记录"
+
+    rows = []
+    rows.append("| 序号 | 文件名 | 转写 | 总结 | 更新时间 | 输出目录 |")
+    rows.append("|------|--------|------|------|----------|----------|")
+
+    for idx, (name, task) in enumerate(completed_tasks.items(), 1):
+        has_transcript = "✅" if get_transcript(task) else "❌"
+
+        summary_text = get_summary(task)
+        has_summary = "✅" if summary_text and not summary_text.startswith("⚠️") else "❌"
+
+        ts = task.get("timestamp", "")
+        if ts:
+            try:
+                dt = datetime.fromisoformat(ts)
+                time_str = dt.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                time_str = ts[:16]
+        else:
+            time_str = "未知"
+
+        output_dir = Path(task["output_dir"]).name
+        rows.append(
+            f"| {idx} | {name} | {has_transcript} | {has_summary} | {time_str} | `{output_dir}` |"
+        )
+
+    return "\n".join(rows)
+
+
+def refresh_task_table():
+    """刷新任务表格"""
+    return build_task_table()
+
+
+def view_task_detail(selected_file):
+    """查看某个任务的详细内容"""
+    if not selected_file or selected_file not in completed_tasks:
+        return "请选择一个文件", ""
+
+    task = completed_tasks[selected_file]
+    transcript = get_transcript(task)
+    summary = get_summary(task)
+
+    transcript_preview = (
+        transcript[:5000] + "\n\n...(已截断)" if len(transcript) > 5000 else transcript
+    )
+
+    return transcript_preview, summary
+
+
+def delete_task(selected_file):
+    """从记录中删除任务（不删除文件）"""
+    if not selected_file or selected_file not in completed_tasks:
+        return "请选择一个文件", build_task_table()
+
+    del completed_tasks[selected_file]
+    save_tasks(completed_tasks)
+    return f"已删除记录: {selected_file}", build_task_table()
 
 
 # ============================================================
@@ -197,7 +299,12 @@ def build_ui():
     with gr.Blocks(title="会议录音转写 + AI总结") as app:
 
         gr.Markdown("# 🎙️ 会议录音转写 + AI总结工具")
-        gr.Markdown("上传录音文件 → Whisper本地转写 → 通义千问AI总结")
+
+        # API状态提示
+        if check_api_key():
+            gr.Markdown("✅ API Key 已配置 | 上传录音文件 → Whisper本地转写 → 通义千问AI总结")
+        else:
+            gr.Markdown("⚠️ **未检测到 API Key**，仅可转写，无法生成总结。请在「设置」中配置。")
 
         with gr.Tabs():
 
@@ -232,7 +339,7 @@ def build_ui():
                         interactive=True,
                     )
                     summary_output = gr.Textbox(
-                        label="会议总结", lines=15, interactive=False
+                        label="会议总结（纯文本）", lines=15, interactive=False
                     )
 
                 with gr.Row():
@@ -240,16 +347,28 @@ def build_ui():
                         "🔄 用左侧文本重新总结", variant="secondary"
                     )
 
+                # Markdown 渲染预览
+                with gr.Accordion("📖 总结 Markdown 预览", open=False):
+                    summary_md_preview = gr.Markdown("")
+
                 run_btn.click(
                     fn=process_files,
                     inputs=[file_input, model_choice],
                     outputs=[status_output, transcript_output, summary_output],
+                ).then(
+                    fn=lambda s: s,
+                    inputs=[summary_output],
+                    outputs=[summary_md_preview],
                 )
 
                 resummarize_btn.click(
                     fn=rerun_summary,
                     inputs=[transcript_output],
                     outputs=[summary_output],
+                ).then(
+                    fn=lambda s: s,
+                    inputs=[summary_output],
+                    outputs=[summary_md_preview],
                 )
 
             # ============ Tab 2: 合并总结 ============
@@ -265,9 +384,13 @@ def build_ui():
                     label="选择要合并的文件",
                 )
                 merge_btn = gr.Button("📋 生成合并总结", variant="primary")
-                merge_output = gr.Textbox(
-                    label="合并总结结果", lines=20, interactive=False
+
+                merge_status = gr.Textbox(
+                    label="状态", lines=2, interactive=False
                 )
+
+                with gr.Accordion("📖 合并总结结果", open=True):
+                    merge_md_output = gr.Markdown("")
 
                 def refresh_file_list():
                     return gr.CheckboxGroup(choices=list(completed_tasks.keys()))
@@ -280,10 +403,134 @@ def build_ui():
                 merge_btn.click(
                     fn=merge_summarize,
                     inputs=[file_selector],
-                    outputs=[merge_output],
+                    outputs=[merge_status, merge_md_output],
                 )
 
-            # ============ Tab 3: 设置 ============
+            # ============ Tab 3: 任务管理 ============
+            with gr.Tab("📋 任务管理"):
+
+                gr.Markdown("查看所有已处理的任务，检查转写/总结状态")
+
+                task_refresh_btn = gr.Button("🔄 刷新列表")
+                task_table = gr.Markdown(build_task_table())
+
+                task_refresh_btn.click(
+                    fn=refresh_task_table,
+                    outputs=[task_table],
+                )
+
+                gr.Markdown("---")
+                gr.Markdown("### 查看任务详情")
+
+                task_selector = gr.Dropdown(
+                    choices=list(completed_tasks.keys()),
+                    label="选择文件",
+                    interactive=True,
+                )
+                view_btn = gr.Button("🔍 查看详情")
+                delete_btn = gr.Button("🗑️ 删除记录（不删除文件）", variant="stop")
+
+                with gr.Row():
+                    detail_transcript = gr.Textbox(
+                        label="转写文本", lines=10, interactive=False
+                    )
+                    with gr.Column():
+                        detail_summary_md = gr.Markdown(
+                            label="会议总结",
+                            value="",
+                        )
+
+                delete_status = gr.Textbox(
+                    label="操作状态", lines=1, interactive=False
+                )
+
+                def refresh_task_selector():
+                    choices = list(completed_tasks.keys())
+                    return (
+                        gr.Dropdown(choices=choices),
+                        build_task_table(),
+                    )
+
+                task_refresh_btn.click(
+                    fn=refresh_task_selector,
+                    outputs=[task_selector, task_table],
+                )
+
+                view_btn.click(
+                    fn=view_task_detail,
+                    inputs=[task_selector],
+                    outputs=[detail_transcript, detail_summary_md],
+                )
+
+                delete_btn.click(
+                    fn=delete_task,
+                    inputs=[task_selector],
+                    outputs=[delete_status, task_table],
+                )
+
+            # ============ Tab 4: Markdown 查看器 ============
+            with gr.Tab("📖 Markdown 查看器"):
+
+                gr.Markdown("查看任意 `.md` 文件，支持 Markdown 渲染效果")
+
+                with gr.Row():
+                    md_file_input = gr.File(
+                        label="上传 .md 文件",
+                        file_types=[".md", ".txt"],
+                        type="filepath",
+                    )
+                    md_load_path = gr.Textbox(
+                        label="或输入文件路径",
+                        placeholder="例如: data/output/xxx/会议总结.md",
+                    )
+
+                md_load_btn = gr.Button("📖 加载并渲染")
+
+                md_rendered = gr.Markdown("")
+                md_raw = gr.Textbox(
+                    label="原始 Markdown 文本（可编辑）",
+                    lines=15,
+                    interactive=True,
+                )
+                md_rerender_btn = gr.Button("🔄 重新渲染上方文本")
+
+                def load_md_file(file, path_str):
+                    """从上传文件或路径加载md"""
+                    content = ""
+
+                    if file:
+                        file_path = file.name if hasattr(file, "name") else str(file)
+                        try:
+                            content = Path(file_path).read_text(encoding="utf-8")
+                        except Exception as e:
+                            content = f"读取失败: {e}"
+                    elif path_str and path_str.strip():
+                        p = Path(path_str.strip())
+                        # 支持相对路径（相对于脚本目录）
+                        if not p.is_absolute():
+                            p = config.BASE_DIR / p
+                        try:
+                            content = p.read_text(encoding="utf-8")
+                        except Exception as e:
+                            content = f"读取失败: {e}"
+                    else:
+                        content = "请上传文件或输入路径"
+
+                    return content, content
+
+                md_load_btn.click(
+                    fn=load_md_file,
+                    inputs=[md_file_input, md_load_path],
+                    outputs=[md_rendered, md_raw],
+                )
+
+                md_rerender_btn.click(
+                    fn=lambda text: text,
+                    inputs=[md_raw],
+                    outputs=[md_rendered],
+                )
+
+            # ============ Tab 5: 设置 ============
             with gr.Tab("⚙️ 设置"):
 
                 gr.Markdown("### API 配置")
@@ -299,7 +546,7 @@ def build_ui():
                 def save_api_key(key):
                     config.DASHSCOPE_API_KEY = key
                     if key:
-                        return "✅ API Key 已保存"
+                        return "✅ API Key 已保存（本次会话有效）"
                     else:
                         return "⚠️ API Key 为空，总结功能将不可用"
 
@@ -322,7 +569,8 @@ def build_ui():
                     "- **Whisper 模型选择**: tiny/base 速度快但准确率低，medium 推荐，large 最准但最慢\n"
                     "- **首次运行**: 需要下载 Whisper 模型文件（medium 约 1.5GB），请耐心等待\n"
                     "- **断点续传**: 如果中途中断，再次处理同一文件会自动跳过已完成的部分\n"
-                    "- **重启保留**: 已完成的任务记录会保存，重启程序后合并总结仍可使用"
+                    "- **重启保留**: 已完成的任务记录会保存，重启程序后合并总结仍可使用\n"
+                    "- **API Key**: 建议通过环境变量设置（永久有效），也可在此页面临时填入"
                 )
 
     return app
