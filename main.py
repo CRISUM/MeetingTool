@@ -12,6 +12,7 @@ import gradio as gr
 import config
 from transcriber import transcribe_audio
 from summarizer import summarize_single, summarize_merged
+from diarizer import check_diarization_available, transcribe_with_diarization
 
 
 # ============================================================
@@ -81,7 +82,7 @@ completed_tasks: dict[str, dict] = load_tasks()
 # 核心处理逻辑
 # ============================================================
 
-def process_files(files, model_name, progress=gr.Progress()):
+def process_files(files, model_name, enable_diarization, progress=gr.Progress()):
     """处理上传的音频文件（批量）"""
     if not files:
         return "请先上传音频文件", "", ""
@@ -92,6 +93,12 @@ def process_files(files, model_name, progress=gr.Progress()):
 
     if not has_api:
         results.append("⚠️ 未检测到 API Key，将只进行转写，不生成总结。\n")
+
+    if enable_diarization:
+        diar_ok, diar_msg = check_diarization_available()
+        if not diar_ok:
+            results.append(f"⚠️ 说话人区分不可用: {diar_msg}，将跳过。\n")
+            enable_diarization = False
 
     for file_idx, file in enumerate(files):
         file_path = file.name if hasattr(file, "name") else str(file)
@@ -107,11 +114,35 @@ def process_files(files, model_name, progress=gr.Progress()):
             progress(overall, desc=f"[{file_idx+1}/{total_files}] {msg}")
 
         try:
-            transcript, output_dir = transcribe_audio(
-                audio_path=file_path,
-                model_name=model_name,
-                progress_callback=transcribe_progress,
-            )
+            if enable_diarization:
+                # 说话人区分模式：不走切片断点，直接整段处理
+                from diarizer import transcribe_with_diarization
+                from datetime import datetime as dt
+                from pathlib import Path as P
+
+                file_name = P(file_path).stem
+                timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+                output_dir = config.OUTPUT_DIR / f"{file_name}_{timestamp}"
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                plain_text, annotated_text = transcribe_with_diarization(
+                    audio_path=file_path,
+                    model_name=model_name,
+                    progress_callback=transcribe_progress,
+                )
+                transcript = annotated_text  # 总结用带标注的文本
+
+                # 保存两个版本
+                (output_dir / "转写全文.txt").write_text(plain_text, encoding="utf-8")
+                (output_dir / "转写全文_说话人标注.txt").write_text(
+                    annotated_text, encoding="utf-8"
+                )
+            else:
+                transcript, output_dir = transcribe_audio(
+                    audio_path=file_path,
+                    model_name=model_name,
+                    progress_callback=transcribe_progress,
+                )
         except Exception as e:
             results.append(f"❌ {Path(file_path).name}: 转写失败 - {e}")
             continue
@@ -324,6 +355,11 @@ def build_ui():
                             label="Whisper 模型",
                             info="medium推荐，large更准但更慢",
                         )
+                        diarization_toggle = gr.Checkbox(
+                            label="🗣️ 启用说话人区分",
+                            value=False,
+                            info="识别不同说话人（需要HF_TOKEN，会增加处理时间）",
+                        )
                         run_btn = gr.Button(
                             "🚀 开始处理", variant="primary", size="lg"
                         )
@@ -353,7 +389,7 @@ def build_ui():
 
                 run_btn.click(
                     fn=process_files,
-                    inputs=[file_input, model_choice],
+                    inputs=[file_input, model_choice, diarization_toggle],
                     outputs=[status_output, transcript_output, summary_output],
                 ).then(
                     fn=lambda s: s,
@@ -428,7 +464,15 @@ def build_ui():
                     interactive=True,
                 )
                 view_btn = gr.Button("🔍 查看详情")
-                delete_btn = gr.Button("🗑️ 删除记录（不删除文件）", variant="stop")
+
+                with gr.Row():
+                    delete_btn = gr.Button("🗑️ 删除记录（不删除文件）", variant="stop")
+                    confirm_delete_btn = gr.Button(
+                        "⚠️ 确认删除", variant="stop", visible=False
+                    )
+                    cancel_delete_btn = gr.Button(
+                        "取消", visible=False
+                    )
 
                 with gr.Row():
                     detail_transcript = gr.Textbox(
@@ -462,10 +506,54 @@ def build_ui():
                     outputs=[detail_transcript, detail_summary_md],
                 )
 
+                def show_confirm(selected_file):
+                    if not selected_file or selected_file not in completed_tasks:
+                        return (
+                            "请先选择一个文件",
+                            gr.Button(visible=True),
+                            gr.Button(visible=False),
+                            gr.Button(visible=False),
+                        )
+                    return (
+                        f"确定要删除「{selected_file}」的记录吗？",
+                        gr.Button(visible=False),
+                        gr.Button(visible=True),
+                        gr.Button(visible=True),
+                    )
+
+                def confirm_delete(selected_file):
+                    result, table = delete_task(selected_file)
+                    return (
+                        result,
+                        table,
+                        gr.Button(visible=True),
+                        gr.Button(visible=False),
+                        gr.Button(visible=False),
+                    )
+
+                def cancel_delete():
+                    return (
+                        "",
+                        gr.Button(visible=True),
+                        gr.Button(visible=False),
+                        gr.Button(visible=False),
+                    )
+
                 delete_btn.click(
-                    fn=delete_task,
+                    fn=show_confirm,
                     inputs=[task_selector],
-                    outputs=[delete_status, task_table],
+                    outputs=[delete_status, delete_btn, confirm_delete_btn, cancel_delete_btn],
+                )
+
+                confirm_delete_btn.click(
+                    fn=confirm_delete,
+                    inputs=[task_selector],
+                    outputs=[delete_status, task_table, delete_btn, confirm_delete_btn, cancel_delete_btn],
+                )
+
+                cancel_delete_btn.click(
+                    fn=cancel_delete,
+                    outputs=[delete_status, delete_btn, confirm_delete_btn, cancel_delete_btn],
                 )
 
             # ============ Tab 4: Markdown 查看器 ============
@@ -543,6 +631,22 @@ def build_ui():
                 save_key_btn = gr.Button("💾 保存 API Key（仅本次会话有效）")
                 key_status = gr.Textbox(label="状态", interactive=False)
 
+                gr.Markdown("### 说话人区分配置")
+                hf_token_input = gr.Textbox(
+                    label="Hugging Face Token（说话人区分需要）",
+                    value=config.HF_TOKEN,
+                    type="password",
+                    placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxx",
+                )
+                save_hf_btn = gr.Button("💾 保存 HF Token（仅本次会话有效）")
+                hf_status = gr.Textbox(label="状态", interactive=False)
+                gr.Markdown(
+                    "说话人区分需要:\n"
+                    "1. 注册 [Hugging Face](https://huggingface.co) 获取Token\n"
+                    "2. 同意模型使用协议: [speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1) 和 [segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0)\n"
+                    "3. 设置环境变量 `HF_TOKEN` 或在此处填入"
+                )
+
                 def save_api_key(key):
                     config.DASHSCOPE_API_KEY = key
                     if key:
@@ -554,6 +658,19 @@ def build_ui():
                     fn=save_api_key,
                     inputs=[api_key_input],
                     outputs=[key_status],
+                )
+
+                def save_hf_token(token):
+                    config.HF_TOKEN = token
+                    if token:
+                        return "✅ HF Token 已保存（本次会话有效）"
+                    else:
+                        return "⚠️ HF Token 为空，说话人区分功能不可用"
+
+                save_hf_btn.click(
+                    fn=save_hf_token,
+                    inputs=[hf_token_input],
+                    outputs=[hf_status],
                 )
 
                 gr.Markdown("### 数据目录")

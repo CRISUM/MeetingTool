@@ -23,6 +23,13 @@ WHISPER_MODEL = "medium"
 WHISPER_LANGUAGE = "zh"
 CHUNK_DURATION_SECONDS = 10 * 60
 
+# 说话人区分（Speaker Diarization）
+# 需要 Hugging Face token：https://huggingface.co/settings/tokens
+# 并且需要在以下页面同意使用协议：
+#   https://huggingface.co/pyannote/speaker-diarization-3.1
+#   https://huggingface.co/pyannote/segmentation-3.0
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+
 # ============================================================
 # 目录配置（全部在脚本目录下）
 # ============================================================

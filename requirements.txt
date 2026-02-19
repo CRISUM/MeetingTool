@@ -2,3 +2,5 @@ openai-whisper
 dashscope
 gradio
 pydub
+pyannote.audio
+torch
