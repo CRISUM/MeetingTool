@@ -35,7 +35,7 @@ fi
 echo ""
 echo "【2/4】检查 Python 和 ffmpeg..."
 
-if ! command -v python3 &>/dev/null || ! python3 -c "import sys; assert sys.version_info >= (3,9)" &>/dev/null 2>&1; then
+if ! command -v python3 &>/dev/null || ! python3 -c "import sys; assert sys.version_info >= (3,12)" &>/dev/null 2>&1; then
     echo "  → 正在安装 Python..."
     brew install python
 else

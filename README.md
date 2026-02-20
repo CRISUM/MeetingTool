@@ -31,29 +31,25 @@
 
 ## Windows 安装
 
-### 系统要求
+### 前置要求
 
-- Python 3.9+
-- ffmpeg
+安装脚本会自动处理大部分步骤，但以下两项需要提前手动安装：
 
-```bash
-# 1. 安装 scoop 包管理器（如已有跳过，在 PowerShell 中运行）
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-irm get.scoop.sh | iex
+**1. Python 3.12+**
+前往 https://www.python.org/downloads/ 下载安装，**安装时务必勾选 "Add Python to PATH"**。
 
-# 2. 安装 ffmpeg
-scoop install ffmpeg
+**2. ffmpeg**
+- 方式一（推荐）：安装 [scoop](https://scoop.sh) 后在 PowerShell 运行 `scoop install ffmpeg`
+- 方式二：从 https://www.gyan.dev/ffmpeg/builds/ 下载 `ffmpeg-release-essentials.zip`，解压后将 `bin` 目录添加到系统 PATH
 
-# 3. 有 NVIDIA 显卡的话，先装 GPU 版 PyTorch（大幅加速转写）
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-# 没有 NVIDIA 显卡则跳过此步
+### 安装步骤
 
-# 4. 安装项目依赖
-cd meeting_tool
-pip install -r requirements.txt
-```
+两项前置依赖就绪后，双击 `安装.bat`，等待完成即可。
 
-> ⚠️ 第 3、4 步顺序很重要：先装 GPU 版 PyTorch，再装 requirements，否则会被覆盖为 CPU 版。
+脚本会自动：
+- 检测 NVIDIA 显卡，有则优先安装 GPU 版 PyTorch（大幅加速转写）
+- 安装所有 Python 依赖
+- 生成 `启动.bat` 快捷方式
 
 ---
 
@@ -90,11 +86,7 @@ setx DASHSCOPE_API_KEY "sk-你的key"
 
 **Mac：** 双击 `启动.command`
 
-**Windows：**
-```bash
-cd meeting_tool
-python main.py
-```
+**Windows：** 双击 `启动.bat`
 
 浏览器自动打开界面。
 
@@ -129,6 +121,8 @@ meeting_tool/
 ├── logger.py
 ├── 安装.command        # Mac 一键安装脚本
 ├── 启动.command        # Mac 启动快捷方式（安装后生成）
+├── 安装.bat            # Windows 一键安装脚本
+├── 启动.bat            # Windows 启动快捷方式（安装后生成）
 ├── 使用说明.md
 └── requirements.txt
 ```
