@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 # ============================================================
 
 DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
-QWEN_MODEL = "qwen-plus"
+QWEN_MODEL = "qwen3.5-plus"
 
 # ============================================================
 # FunASR 配置
