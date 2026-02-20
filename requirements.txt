@@ -1,6 +1,6 @@
 funasr
 modelscope
-dashscope
+openai
 gradio
 pydub
 # torch 不在这里装！请手动安装GPU版：

@@ -173,7 +173,7 @@ def build_ui() -> gr.Blocks:
                     with gr.Column(scale=1):
                         enable_speaker_cb = gr.Checkbox(
                             label="🗣️ 启用说话人区分（cam++）",
-                            value=False,
+                            value=True,
                             info="识别不同说话人，声音相似时效果有限",
                         )
                         enable_summary_cb = gr.Checkbox(

@@ -16,27 +16,24 @@ logger = logging.getLogger(__name__)
 
 
 def _call_qwen(prompt: str) -> str:
-    """调用通义千问 API"""
-    import dashscope
-    from dashscope import Generation
+    """调用通义千问 API（OpenAI 兼容接口）"""
+    from openai import OpenAI
 
-    dashscope.api_key = config.DASHSCOPE_API_KEY
+    client = OpenAI(
+        api_key=config.DASHSCOPE_API_KEY,
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
 
     start_time = time.time()
-    response = Generation.call(
+    response = client.chat.completions.create(
         model=config.QWEN_MODEL,
         messages=[{"role": "user", "content": prompt}],
-        result_format="message",
     )
     elapsed = time.time() - start_time
 
-    if response.status_code == 200:
-        result = response.output.choices[0].message.content
-        logger.debug(f"API 调用成功 | 耗时 {elapsed:.1f}s | 响应长度 {len(result)}")
-        return result
-    else:
-        logger.error(f"API 调用失败 | {response.code} - {response.message}")
-        raise Exception(f"通义千问 API 调用失败: {response.code} - {response.message}")
+    result = response.choices[0].message.content
+    logger.debug(f"API 调用成功 | 耗时 {elapsed:.1f}s | 响应长度 {len(result)}")
+    return result
 
 
 def summarize_single(
