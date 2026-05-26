@@ -164,24 +164,12 @@ if /i not "%PREHEAT_CONFIRM%"=="n" (
 echo.
 echo 【5/5】创建启动快捷方式...
 
-(
-echo @echo off
-echo chcp 65001 ^>nul
-echo cd /d "%%~dp0"
-echo echo 正在启动会议录音转写工具...
-echo echo 启动后浏览器会自动打开，请稍候。
-echo echo （此窗口在使用期间请保持打开，关闭后工具停止运行）
-echo echo.
-echo if not exist "venv\Scripts\python.exe" ^(
-echo     echo X 未找到虚拟环境，请先双击「安装.bat」完成安装。
-echo     pause
-echo     exit /b 1
-echo ^)
-echo call "venv\Scripts\activate.bat"
-echo python main.py
-echo pause
-) > 启动.bat
-
+if not exist "_launcher_template.bat" (
+    echo   X 未找到 _launcher_template.bat，无法生成启动脚本。
+    pause
+    exit /b 1
+)
+copy /Y "_launcher_template.bat" "启动.bat" >nul
 echo   √ 启动快捷方式已创建：启动.bat
 
 :: ── 完成 ──────────────────────────────────────────

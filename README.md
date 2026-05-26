@@ -47,9 +47,12 @@
 两项前置依赖就绪后，双击 `安装.bat`，等待完成即可。
 
 脚本会自动：
-- 检测 NVIDIA 显卡，有则优先安装 GPU 版 PyTorch（大幅加速转写）
-- 安装所有 Python 依赖
-- 生成 `启动.bat` 快捷方式
+- 缺 ffmpeg 时尝试用 `winget` 自动安装
+- 创建项目内 `venv\` 虚拟环境，所有依赖隔离在其中（不污染全局 Python）
+- 检测 NVIDIA 显卡：有则装 GPU 版 PyTorch（cu121），无则装 CPU 版
+- 通过阿里云镜像加速安装其他依赖，失败时回退到默认源
+- 可选预下载 FunASR 转写模型（约 500MB），让首次启动不再卡
+- 生成 `启动.bat` 快捷方式（自动激活 venv）
 
 ---
 
@@ -78,7 +81,17 @@ setx DASHSCOPE_API_KEY "sk-你的key"
 
 设置后**必须重启终端**才生效。
 
-也可以不设环境变量，启动工具后在「设置」页面手动填入（仅当次会话有效）。
+**方式三（推荐用于本地开发）：`.env` 文件**
+
+复制项目根目录下的 `.env.example` 为 `.env`，填入实际值：
+
+```
+DASHSCOPE_API_KEY=sk-你的key
+```
+
+启动时会自动加载。已设置的系统环境变量优先级更高（覆盖 `.env`）。`.env` 在 `.gitignore` 中，不会被提交。
+
+也可以不设任何变量，启动工具后在「设置」页面手动填入（仅当次会话有效）。
 
 ---
 
@@ -89,6 +102,19 @@ setx DASHSCOPE_API_KEY "sk-你的key"
 **Windows：** 双击 `启动.bat`
 
 浏览器自动打开界面。
+
+---
+
+## 维护脚本
+
+| 脚本 | 用途 |
+|------|------|
+| `安装.bat` / `安装.command` | 一键安装（建 venv、装依赖、生成启动器，可选预下载模型） |
+| `启动.bat` / `启动.command` | 启动工具（激活 venv → `python main.py`） |
+| `诊断.bat` / `诊断.command` | 输出 Python/ffmpeg/torch/CUDA、依赖版本、模型缓存大小、磁盘剩余、关键环境变量 |
+| `更新.bat` / `更新.command` | `git pull --ff-only` + 在 venv 内 `pip install --upgrade -r requirements.txt` |
+
+排查问题时优先跑「诊断」脚本；升级到新版本跑「更新」脚本。
 
 ---
 
@@ -119,10 +145,14 @@ meeting_tool/
 ├── handlers.py
 ├── ui.py
 ├── logger.py
-├── 安装.command        # Mac 一键安装脚本
-├── 启动.command        # Mac 启动快捷方式（安装后生成）
-├── 安装.bat            # Windows 一键安装脚本
-├── 启动.bat            # Windows 启动快捷方式（安装后生成）
+├── 安装.command / 安装.bat        # 一键安装
+├── 启动.command / 启动.bat        # 启动快捷方式（安装后生成，已 gitignore）
+├── 诊断.command / 诊断.bat        # 环境诊断
+├── 更新.command / 更新.bat        # 拉代码 + 升级依赖
+├── _diagnose.py                  # 诊断脚本的 Python 端实现
+├── _launcher_template.bat        # Windows 启动器模板
+├── .env.example                  # 环境变量模板
+├── pyproject.toml                # 工具配置（ruff 等）
 ├── 使用说明.md
 └── requirements.txt
 ```
