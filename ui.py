@@ -1,6 +1,6 @@
 """
-Gradio UI 层（Gradio 6 兼容）
-- theme/head 参数移至 launch()
+Gradio UI 层（Gradio 5/6 兼容）
+- theme 在 gr.Blocks(theme=...) 设置（gradio 5+ 已从 launch() 移除）
 - Toast 通过隐藏 Textbox + js= 参数触发，避免 script 标签不重复执行的问题
 - open_dir_btn 直接读 task_selector 值，不依赖异步 State
 """
@@ -135,7 +135,7 @@ def build_ui() -> gr.Blocks:
 
     feature_status = handlers.get_feature_status()
 
-    with gr.Blocks(title="会议录音转写 + AI总结") as app:
+    with gr.Blocks(title="会议录音转写 + AI总结", theme=gr.themes.Soft()) as app:
 
         # Toast 容器（CSS + JS），只注入一次
         gr.HTML(value=TOAST_CONTAINER_HTML)
@@ -586,10 +586,10 @@ def build_ui() -> gr.Blocks:
 
 
 # launch 参数集中在这里，main.py 直接解包使用
+# 注：theme 已从 launch() 移除（gradio 5+），改在 gr.Blocks(theme=...) 设置
 LAUNCH_KWARGS = dict(
     server_name="0.0.0.0",
     server_port=None,
     share=False,
     inbrowser=True,
-    theme=gr.themes.Soft(),
 )
