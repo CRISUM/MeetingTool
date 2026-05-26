@@ -94,6 +94,19 @@ else
     echo "  ✅ Python 依赖安装完成"
 fi
 
+# ── 预热模型（可选）─────────────────────────────
+echo ""
+echo "是否现在预下载 FunASR 转写模型？（约 500MB，首次启动可省去等待）"
+read -p "  现在预下载？[Y/n]: " PREHEAT_CONFIRM
+if [[ ! "$PREHEAT_CONFIRM" =~ ^[Nn]$ ]]; then
+    echo "  → 正在预下载模型，请保持网络畅通..."
+    if python3 main.py --preheat; then
+        echo "  ✅ 模型预下载完成"
+    else
+        echo "  ⚠️ 模型预下载失败，可忽略——首次启动时会自动重试。"
+    fi
+fi
+
 # ── 4. 创建启动脚本 ───────────────────────────────
 echo ""
 echo "【4/4】创建启动快捷方式..."
