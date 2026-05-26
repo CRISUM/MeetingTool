@@ -7,6 +7,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.resolve()
 
+# 加载项目根目录下的 .env（如果存在），优先级低于已设置的环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env", override=False)
+except ImportError:
+    pass
+
 # ============================================================
 # API 配置
 # ============================================================
