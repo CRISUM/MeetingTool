@@ -73,8 +73,16 @@ source venv/bin/activate
 # 升级 pip
 python3 -m pip install --upgrade pip -q
 
+# 显式安装 CPU 版 torch（与 Windows 安装脚本保持一致）
+echo "  → 安装 PyTorch (CPU 版)..."
+if ! python3 -m pip install torch torchaudio -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com; then
+    echo "  ⚠️ 阿里云镜像失败，使用默认源重试..."
+    python3 -m pip install torch torchaudio
+fi
+echo "  ✅ PyTorch 安装完成"
+
 # 安装依赖（优先使用阿里云镜像，失败则回退到默认源）
-echo "  → 正在安装依赖包..."
+echo "  → 正在安装其他依赖包..."
 if python3 -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com; then
     echo ""
     echo "  ✅ Python 依赖安装完成"

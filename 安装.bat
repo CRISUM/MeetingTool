@@ -11,7 +11,7 @@ echo ================================================
 echo.
 
 :: ── 1. 检查 Python ───────────────────────────────
-echo 【1/4】检查 Python...
+echo 【1/5】检查 Python...
 python --version >nul 2>&1
 if errorlevel 1 (
     echo   × 未检测到 Python，请先安装 Python 3.12 或以上版本。
@@ -26,20 +26,9 @@ if errorlevel 1 (
 for /f "tokens=*" %%i in ('python --version 2^>^&1') do set PY_VER=%%i
 echo   √ %PY_VER% 已安装
 
-:: ── 2. 检查 pip ───────────────────────────────────
+:: ── 2. 检查 ffmpeg ────────────────────────────────
 echo.
-echo 【2/4】检查 pip...
-python -m pip --version >nul 2>&1
-if errorlevel 1 (
-    echo   × pip 未找到，尝试修复...
-    python -m ensurepip --upgrade
-)
-python -m pip install --upgrade pip -q
-echo   √ pip 已就绪
-
-:: ── 3. 检查 ffmpeg ────────────────────────────────
-echo.
-echo 【3/4】检查 ffmpeg...
+echo 【2/5】检查 ffmpeg...
 ffmpeg -version >nul 2>&1
 if errorlevel 1 (
     echo   × 未检测到 ffmpeg。
@@ -59,41 +48,82 @@ if errorlevel 1 (
     echo   √ ffmpeg 已安装
 )
 
+:: ── 3. 创建虚拟环境 ───────────────────────────────
+echo.
+echo 【3/5】准备 Python 虚拟环境...
+if not exist "venv\Scripts\python.exe" (
+    echo   → 创建虚拟环境 venv\ ...
+    python -m venv venv
+    if errorlevel 1 (
+        echo   × 虚拟环境创建失败，请确认 Python 安装完整。
+        pause
+        exit /b 1
+    )
+    echo   √ 虚拟环境已创建
+) else (
+    echo   √ 虚拟环境已存在，跳过创建
+)
+
+:: 之后所有 pip / python 都走 venv
+set "VENV_PY=%~dp0venv\Scripts\python.exe"
+"%VENV_PY%" -m pip install --upgrade pip -q
+
 :: ── 4. 安装 Python 依赖 ───────────────────────────
 echo.
-echo 【4/4】安装 Python 依赖（首次约需 5-10 分钟）...
+echo 【4/5】安装 Python 依赖（首次约需 5-10 分钟）...
 echo   （正在下载 FunASR、Gradio 等组件，请保持网络畅通）
 echo.
 
-:: 检查是否有 NVIDIA 显卡，有则提示安装 GPU 版 PyTorch
+:: 检查是否有 NVIDIA 显卡，有则安装 GPU 版 PyTorch，否则装 CPU 版
+set "TORCH_OK=0"
 nvidia-smi >nul 2>&1
 if not errorlevel 1 (
     echo   检测到 NVIDIA 显卡，正在安装 GPU 版 PyTorch（大幅加速转写）...
     echo   （此步骤约需额外 5 分钟，下载约 2GB）
     echo.
-    python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    "%VENV_PY%" -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
     if errorlevel 1 (
-        echo   ！GPU 版 PyTorch 安装失败，将使用 CPU 版继续。
+        echo   ! GPU 版 PyTorch 安装失败，回退到 CPU 版。
     ) else (
         echo   √ GPU 版 PyTorch 安装完成
+        set "TORCH_OK=1"
     )
     echo.
 )
+if "%TORCH_OK%"=="0" (
+    echo   → 安装 CPU 版 PyTorch...
+    "%VENV_PY%" -m pip install torch torchaudio -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+    if errorlevel 1 (
+        echo   ! 阿里云镜像失败，使用默认源重试...
+        "%VENV_PY%" -m pip install torch torchaudio
+        if errorlevel 1 (
+            echo × PyTorch 安装失败，请截图此窗口发给开发者。
+            pause
+            exit /b 1
+        )
+    )
+    echo   √ CPU 版 PyTorch 安装完成
+)
 
-python -m pip install -r requirements.txt
+:: 其他依赖优先走阿里云镜像
+"%VENV_PY%" -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 if errorlevel 1 (
-    echo.
-    echo × 依赖安装失败，请截图此窗口发给开发者。
-    pause
-    exit /b 1
+    echo   ! 阿里云镜像失败，使用默认源重试...
+    "%VENV_PY%" -m pip install -r requirements.txt
+    if errorlevel 1 (
+        echo.
+        echo × 依赖安装失败，请截图此窗口发给开发者。
+        pause
+        exit /b 1
+    )
 )
 
 echo.
 echo   √ Python 依赖安装完成
 
-:: ── 创建启动脚本 ──────────────────────────────────
+:: ── 5. 创建启动脚本 ───────────────────────────────
 echo.
-echo 正在创建启动快捷方式...
+echo 【5/5】创建启动快捷方式...
 
 (
 echo @echo off
@@ -103,6 +133,12 @@ echo echo 正在启动会议录音转写工具...
 echo echo 启动后浏览器会自动打开，请稍候。
 echo echo （此窗口在使用期间请保持打开，关闭后工具停止运行）
 echo echo.
+echo if not exist "venv\Scripts\python.exe" ^(
+echo     echo X 未找到虚拟环境，请先双击「安装.bat」完成安装。
+echo     pause
+echo     exit /b 1
+echo ^)
+echo call "venv\Scripts\activate.bat"
 echo python main.py
 echo pause
 ) > 启动.bat
