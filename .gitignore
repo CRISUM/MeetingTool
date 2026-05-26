@@ -1,4 +1,24 @@
-
 data/
 __pycache__/
 *.pyc
+
+# 虚拟环境
+venv/
+.venv/
+
+# 安装脚本生成的启动器（不入库）
+启动.bat
+启动.command
+
+# 本地环境变量
+.env
+.env.local
+
+# 日志
+*.log
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

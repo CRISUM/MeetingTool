@@ -1,7 +1,13 @@
-funasr
-modelscope
-openai
-gradio
-pydub
-# torch 不在这里装！请手动安装GPU版：
-# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# 主依赖 - 加最小版本下限，避免老版本 API 不兼容
+# 如需完全复现环境，请在安装后跑 `pip freeze > requirements.lock`
+funasr>=1.1.0
+modelscope>=1.18.0
+openai>=1.40.0
+gradio>=4.40,<6
+pydub>=0.25.1
+
+# torch 不在这里装！由安装脚本按平台决定：
+#   Windows 有 NVIDIA  → 安装脚本会装 CUDA 版（cu121）
+#   Windows 无 GPU / Mac → 安装脚本会装 CPU 版
+# 如需手动安装 GPU 版：
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
