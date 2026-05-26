@@ -1,0 +1,30 @@
+[project]
+name = "meeting-tool"
+version = "0.1.0"
+description = "本地运行的会议录音转写 + AI 总结工具"
+requires-python = ">=3.12"
+
+# 实际依赖统一由 requirements.txt 管理，pyproject 仅承载工具配置。
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["data", "venv", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # 行太长（中文注释多，交给 formatter 决定）
+    "B008",  # 函数默认值里调用函数（gradio handler 常用）
+]
+
+[tool.ruff.lint.per-file-ignores]
+"_diagnose.py" = ["E402"]

@@ -5,6 +5,7 @@ modelscope>=1.18.0
 openai>=1.40.0
 gradio>=4.40,<6
 pydub>=0.25.1
+python-dotenv>=1.0.0
 
 # torch 不在这里装！由安装脚本按平台决定：
 #   Windows 有 NVIDIA  → 安装脚本会装 CUDA 版（cu121）
