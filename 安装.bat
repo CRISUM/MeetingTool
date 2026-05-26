@@ -33,7 +33,32 @@ ffmpeg -version >nul 2>&1
 if errorlevel 1 (
     echo   × 未检测到 ffmpeg。
     echo.
-    echo   请按以下步骤安装：
+
+    :: 优先尝试 winget 自动安装
+    winget --version >nul 2>&1
+    if not errorlevel 1 (
+        echo   检测到 winget，可自动安装 ffmpeg（Gyan.FFmpeg）。
+        set /p FFMPEG_CONFIRM=  是否现在自动安装 ffmpeg？[Y/n]:
+        if /i not "!FFMPEG_CONFIRM!"=="n" (
+            echo   → 正在通过 winget 安装 ffmpeg...
+            winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
+            if errorlevel 1 (
+                echo   ! winget 安装失败，请按下方说明手动安装。
+            ) else (
+                echo.
+                echo   √ ffmpeg 安装命令已执行。
+                echo.
+                echo   ⚠ 当前命令行窗口仍读不到新加的 PATH，需要：
+                echo     关闭本窗口 → 重新双击「安装.bat」继续。
+                echo.
+                pause
+                exit /b 0
+            )
+        )
+    )
+
+    echo.
+    echo   请按以下步骤手动安装：
     echo   1. 在浏览器打开：https://www.gyan.dev/ffmpeg/builds/
     echo   2. 下载 "ffmpeg-release-essentials.zip"
     echo   3. 解压后将 bin 文件夹路径添加到系统 PATH
@@ -120,6 +145,20 @@ if errorlevel 1 (
 
 echo.
 echo   √ Python 依赖安装完成
+
+:: ── 预热模型（可选）─────────────────────────────
+echo.
+echo 是否现在预下载 FunASR 转写模型？（约 500MB，首次启动可省去等待）
+set /p PREHEAT_CONFIRM=  现在预下载？[Y/n]:
+if /i not "%PREHEAT_CONFIRM%"=="n" (
+    echo   → 正在预下载模型，请保持网络畅通...
+    "%VENV_PY%" main.py --preheat
+    if errorlevel 1 (
+        echo   ! 模型预下载失败，可忽略——首次启动时会自动重试。
+    ) else (
+        echo   √ 模型预下载完成
+    )
+)
 
 :: ── 5. 创建启动脚本 ───────────────────────────────
 echo.
