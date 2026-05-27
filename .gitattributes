@@ -1,2 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Windows .bat：保持 CRLF、不要改编码（中文系统下文件本身是 GBK）
+*.bat text eol=crlf
+
+# Mac .command：保持 LF
+*.command text eol=lf

@@ -1,12 +1,11 @@
-﻿@echo off
-chcp 65001 >nul
+@echo off
 cd /d "%~dp0"
-echo 正在启动会议录音转写工具...
-echo 启动后浏览器会自动打开，请稍候。
-echo （此窗口在使用期间请保持打开，关闭后工具停止运行）
+echo ������������¼��תд����...
+echo ��������������Զ��򿪣����Ժ�
+echo ���˴�����ʹ���ڼ��뱣�ִ򿪣��رպ󹤾�ֹͣ���У�
 echo.
 if not exist "venv\Scripts\python.exe" (
-    echo X 未找到虚拟环境，请先双击「安装.bat」完成安装。
+    echo X δ�ҵ����⻷��������˫������װ.bat����ɰ�װ��
     pause
     exit /b 1
 )
