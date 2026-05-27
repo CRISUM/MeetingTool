@@ -1,55 +1,54 @@
-ï»¿@echo off
-chcp 65001 >nul
+@echo off
 setlocal enabledelayedexpansion
 
-:: åˆ‡æ¢åˆ°è„šæœ¬æ‰€åœ¨ç›®å½•ï¼ˆå³é¡¹ç›®æ ¹ç›®å½•ï¼‰
+:: ÇÐ»»µ½½Å±¾ËùÔÚÄ¿Â¼£¨¼´ÏîÄ¿¸ùÄ¿Â¼£©
 cd /d "%~dp0"
 
 echo ================================================
-echo   ä¼šè®®å½•éŸ³è½¬å†™å·¥å…· Â· å®‰è£…ç¨‹åº
+echo   »áÒéÂ¼Òô×ªÐ´¹¤¾ß ¡¤ °²×°³ÌÐò
 echo ================================================
 echo.
 
-:: â”€â”€ 1. æ£€æŸ¥ Python â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-echo ã€1/5ã€‘æ£€æŸ¥ Python...
+:: ©¤©¤ 1. ¼ì²é Python ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
+echo ¡¾1/5¡¿¼ì²é Python...
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo   Ã— æœªæ£€æµ‹åˆ° Pythonï¼Œè¯·å…ˆå®‰è£… Python 3.12 æˆ–ä»¥ä¸Šç‰ˆæœ¬ã€‚
+    echo   ¡Á Î´¼ì²âµ½ Python£¬ÇëÏÈ°²×° Python 3.12 »òÒÔÉÏ°æ±¾¡£
     echo.
-    echo   ä¸‹è½½åœ°å€ï¼šhttps://www.python.org/downloads/
-    echo   å®‰è£…æ—¶åŠ¡å¿…å‹¾é€‰ "Add Python to PATH"
+    echo   ÏÂÔØµØÖ·£ºhttps://www.python.org/downloads/
+    echo   °²×°Ê±Îñ±Ø¹´Ñ¡ "Add Python to PATH"
     echo.
-    echo   å®‰è£…å®ŒæˆåŽï¼Œé‡æ–°åŒå‡»æœ¬è„šæœ¬ç»§ç»­å®‰è£…ã€‚
+    echo   °²×°Íê³Éºó£¬ÖØÐÂË«»÷±¾½Å±¾¼ÌÐø°²×°¡£
     pause
     exit /b 1
 )
 for /f "tokens=*" %%i in ('python --version 2^>^&1') do set PY_VER=%%i
-echo   âˆš %PY_VER% å·²å®‰è£…
+echo   ¡Ì %PY_VER% ÒÑ°²×°
 
-:: â”€â”€ 2. æ£€æŸ¥ ffmpeg â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ 2. ¼ì²é ffmpeg ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
-echo ã€2/5ã€‘æ£€æŸ¥ ffmpeg...
+echo ¡¾2/5¡¿¼ì²é ffmpeg...
 ffmpeg -version >nul 2>&1
 if errorlevel 1 (
-    echo   Ã— æœªæ£€æµ‹åˆ° ffmpegã€‚
+    echo   ¡Á Î´¼ì²âµ½ ffmpeg¡£
     echo.
 
-    :: ä¼˜å…ˆå°è¯• winget è‡ªåŠ¨å®‰è£…
+    :: ÓÅÏÈ³¢ÊÔ winget ×Ô¶¯°²×°
     winget --version >nul 2>&1
     if not errorlevel 1 (
-        echo   æ£€æµ‹åˆ° wingetï¼Œå¯è‡ªåŠ¨å®‰è£… ffmpegï¼ˆGyan.FFmpegï¼‰ã€‚
-        set /p FFMPEG_CONFIRM=  æ˜¯å¦çŽ°åœ¨è‡ªåŠ¨å®‰è£… ffmpegï¼Ÿ[Y/n]:
+        echo   ¼ì²âµ½ winget£¬¿É×Ô¶¯°²×° ffmpeg£¨Gyan.FFmpeg£©¡£
+        set /p FFMPEG_CONFIRM=  ÊÇ·ñÏÖÔÚ×Ô¶¯°²×° ffmpeg£¿[Y/n]:
         if /i not "!FFMPEG_CONFIRM!"=="n" (
-            echo   â†’ æ­£åœ¨é€šè¿‡ winget å®‰è£… ffmpeg...
+            echo   ¡ú ÕýÔÚÍ¨¹ý winget °²×° ffmpeg...
             winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
             if errorlevel 1 (
-                echo   ! winget å®‰è£…å¤±è´¥ï¼Œè¯·æŒ‰ä¸‹æ–¹è¯´æ˜Žæ‰‹åŠ¨å®‰è£…ã€‚
+                echo   ! winget °²×°Ê§°Ü£¬Çë°´ÏÂ·½ËµÃ÷ÊÖ¶¯°²×°¡£
             ) else (
                 echo.
-                echo   âˆš ffmpeg å®‰è£…å‘½ä»¤å·²æ‰§è¡Œã€‚
+                echo   ¡Ì ffmpeg °²×°ÃüÁîÒÑÖ´ÐÐ¡£
                 echo.
-                echo   âš  å½“å‰å‘½ä»¤è¡Œçª—å£ä»è¯»ä¸åˆ°æ–°åŠ çš„ PATHï¼Œéœ€è¦ï¼š
-                echo     å…³é—­æœ¬çª—å£ â†’ é‡æ–°åŒå‡»ã€Œå®‰è£….batã€ç»§ç»­ã€‚
+                echo   ? µ±Ç°ÃüÁîÐÐ´°¿ÚÈÔ¶Á²»µ½ÐÂ¼ÓµÄ PATH£¬ÐèÒª£º
+                echo     ¹Ø±Õ±¾´°¿Ú ¡ú ÖØÐÂË«»÷¡¸°²×°.bat¡¹¼ÌÐø¡£
                 echo.
                 pause
                 exit /b 0
@@ -58,129 +57,129 @@ if errorlevel 1 (
     )
 
     echo.
-    echo   è¯·æŒ‰ä»¥ä¸‹æ­¥éª¤æ‰‹åŠ¨å®‰è£…ï¼š
-    echo   1. åœ¨æµè§ˆå™¨æ‰“å¼€ï¼šhttps://www.gyan.dev/ffmpeg/builds/
-    echo   2. ä¸‹è½½ "ffmpeg-release-essentials.zip"
-    echo   3. è§£åŽ‹åŽå°† bin æ–‡ä»¶å¤¹è·¯å¾„æ·»åŠ åˆ°ç³»ç»Ÿ PATH
+    echo   Çë°´ÒÔÏÂ²½ÖèÊÖ¶¯°²×°£º
+    echo   1. ÔÚä¯ÀÀÆ÷´ò¿ª£ºhttps://www.gyan.dev/ffmpeg/builds/
+    echo   2. ÏÂÔØ "ffmpeg-release-essentials.zip"
+    echo   3. ½âÑ¹ºó½« bin ÎÄ¼þ¼ÐÂ·¾¶Ìí¼Óµ½ÏµÍ³ PATH
     echo.
-    echo   æˆ–è€…å¦‚æžœå·²å®‰è£… scoopï¼Œå¯ä»¥ç›´æŽ¥è¿è¡Œï¼š
+    echo   »òÕßÈç¹ûÒÑ°²×° scoop£¬¿ÉÒÔÖ±½ÓÔËÐÐ£º
     echo     scoop install ffmpeg
     echo.
-    echo   å®‰è£… ffmpeg åŽï¼Œé‡æ–°åŒå‡»æœ¬è„šæœ¬ç»§ç»­ã€‚
+    echo   °²×° ffmpeg ºó£¬ÖØÐÂË«»÷±¾½Å±¾¼ÌÐø¡£
     pause
     exit /b 1
 ) else (
-    echo   âˆš ffmpeg å·²å®‰è£…
+    echo   ¡Ì ffmpeg ÒÑ°²×°
 )
 
-:: â”€â”€ 3. åˆ›å»ºè™šæ‹ŸçŽ¯å¢ƒ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ 3. ´´½¨ÐéÄâ»·¾³ ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
-echo ã€3/5ã€‘å‡†å¤‡ Python è™šæ‹ŸçŽ¯å¢ƒ...
+echo ¡¾3/5¡¿×¼±¸ Python ÐéÄâ»·¾³...
 if not exist "venv\Scripts\python.exe" (
-    echo   â†’ åˆ›å»ºè™šæ‹ŸçŽ¯å¢ƒ venv\ ...
+    echo   ¡ú ´´½¨ÐéÄâ»·¾³ venv\ ...
     python -m venv venv
     if errorlevel 1 (
-        echo   Ã— è™šæ‹ŸçŽ¯å¢ƒåˆ›å»ºå¤±è´¥ï¼Œè¯·ç¡®è®¤ Python å®‰è£…å®Œæ•´ã€‚
+        echo   ¡Á ÐéÄâ»·¾³´´½¨Ê§°Ü£¬ÇëÈ·ÈÏ Python °²×°ÍêÕû¡£
         pause
         exit /b 1
     )
-    echo   âˆš è™šæ‹ŸçŽ¯å¢ƒå·²åˆ›å»º
+    echo   ¡Ì ÐéÄâ»·¾³ÒÑ´´½¨
 ) else (
-    echo   âˆš è™šæ‹ŸçŽ¯å¢ƒå·²å­˜åœ¨ï¼Œè·³è¿‡åˆ›å»º
+    echo   ¡Ì ÐéÄâ»·¾³ÒÑ´æÔÚ£¬Ìø¹ý´´½¨
 )
 
-:: ä¹‹åŽæ‰€æœ‰ pip / python éƒ½èµ° venv
+:: Ö®ºóËùÓÐ pip / python ¶¼×ß venv
 set "VENV_PY=%~dp0venv\Scripts\python.exe"
 "%VENV_PY%" -m pip install --upgrade pip -q
 
-:: â”€â”€ 4. å®‰è£… Python ä¾èµ– â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ 4. °²×° Python ÒÀÀµ ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
-echo ã€4/5ã€‘å®‰è£… Python ä¾èµ–ï¼ˆé¦–æ¬¡çº¦éœ€ 5-10 åˆ†é’Ÿï¼‰...
-echo   ï¼ˆæ­£åœ¨ä¸‹è½½ FunASRã€Gradio ç­‰ç»„ä»¶ï¼Œè¯·ä¿æŒç½‘ç»œç•…é€šï¼‰
+echo ¡¾4/5¡¿°²×° Python ÒÀÀµ£¨Ê×´ÎÔ¼Ðè 5-10 ·ÖÖÓ£©...
+echo   £¨ÕýÔÚÏÂÔØ FunASR¡¢Gradio µÈ×é¼þ£¬Çë±£³ÖÍøÂç³©Í¨£©
 echo.
 
-:: æ£€æŸ¥æ˜¯å¦æœ‰ NVIDIA æ˜¾å¡ï¼Œæœ‰åˆ™å®‰è£… GPU ç‰ˆ PyTorchï¼Œå¦åˆ™è£… CPU ç‰ˆ
+:: ¼ì²éÊÇ·ñÓÐ NVIDIA ÏÔ¿¨£¬ÓÐÔò°²×° GPU °æ PyTorch£¬·ñÔò×° CPU °æ
 set "TORCH_OK=0"
 nvidia-smi >nul 2>&1
 if not errorlevel 1 (
-    echo   æ£€æµ‹åˆ° NVIDIA æ˜¾å¡ï¼Œæ­£åœ¨å®‰è£… GPU ç‰ˆ PyTorchï¼ˆå¤§å¹…åŠ é€Ÿè½¬å†™ï¼‰...
-    echo   ï¼ˆæ­¤æ­¥éª¤çº¦éœ€é¢å¤– 5 åˆ†é’Ÿï¼Œä¸‹è½½çº¦ 2GBï¼‰
+    echo   ¼ì²âµ½ NVIDIA ÏÔ¿¨£¬ÕýÔÚ°²×° GPU °æ PyTorch£¨´ó·ù¼ÓËÙ×ªÐ´£©...
+    echo   £¨´Ë²½ÖèÔ¼Ðè¶îÍâ 5 ·ÖÖÓ£¬ÏÂÔØÔ¼ 2GB£©
     echo.
     "%VENV_PY%" -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
     if errorlevel 1 (
-        echo   ! GPU ç‰ˆ PyTorch å®‰è£…å¤±è´¥ï¼Œå›žé€€åˆ° CPU ç‰ˆã€‚
+        echo   ! GPU °æ PyTorch °²×°Ê§°Ü£¬»ØÍËµ½ CPU °æ¡£
     ) else (
-        echo   âˆš GPU ç‰ˆ PyTorch å®‰è£…å®Œæˆ
+        echo   ¡Ì GPU °æ PyTorch °²×°Íê³É
         set "TORCH_OK=1"
     )
     echo.
 )
 if "%TORCH_OK%"=="0" (
-    echo   â†’ å®‰è£… CPU ç‰ˆ PyTorch...
+    echo   ¡ú °²×° CPU °æ PyTorch...
     "%VENV_PY%" -m pip install torch torchaudio -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
     if errorlevel 1 (
-        echo   ! é˜¿é‡Œäº‘é•œåƒå¤±è´¥ï¼Œä½¿ç”¨é»˜è®¤æºé‡è¯•...
+        echo   ! °¢ÀïÔÆ¾µÏñÊ§°Ü£¬Ê¹ÓÃÄ¬ÈÏÔ´ÖØÊÔ...
         "%VENV_PY%" -m pip install torch torchaudio
         if errorlevel 1 (
-            echo Ã— PyTorch å®‰è£…å¤±è´¥ï¼Œè¯·æˆªå›¾æ­¤çª—å£å‘ç»™å¼€å‘è€…ã€‚
+            echo ¡Á PyTorch °²×°Ê§°Ü£¬Çë½ØÍ¼´Ë´°¿Ú·¢¸ø¿ª·¢Õß¡£
             pause
             exit /b 1
         )
     )
-    echo   âˆš CPU ç‰ˆ PyTorch å®‰è£…å®Œæˆ
+    echo   ¡Ì CPU °æ PyTorch °²×°Íê³É
 )
 
-:: å…¶ä»–ä¾èµ–ä¼˜å…ˆèµ°é˜¿é‡Œäº‘é•œåƒ
+:: ÆäËûÒÀÀµÓÅÏÈ×ß°¢ÀïÔÆ¾µÏñ
 "%VENV_PY%" -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 if errorlevel 1 (
-    echo   ! é˜¿é‡Œäº‘é•œåƒå¤±è´¥ï¼Œä½¿ç”¨é»˜è®¤æºé‡è¯•...
+    echo   ! °¢ÀïÔÆ¾µÏñÊ§°Ü£¬Ê¹ÓÃÄ¬ÈÏÔ´ÖØÊÔ...
     "%VENV_PY%" -m pip install -r requirements.txt
     if errorlevel 1 (
         echo.
-        echo Ã— ä¾èµ–å®‰è£…å¤±è´¥ï¼Œè¯·æˆªå›¾æ­¤çª—å£å‘ç»™å¼€å‘è€…ã€‚
+        echo ¡Á ÒÀÀµ°²×°Ê§°Ü£¬Çë½ØÍ¼´Ë´°¿Ú·¢¸ø¿ª·¢Õß¡£
         pause
         exit /b 1
     )
 )
 
 echo.
-echo   âˆš Python ä¾èµ–å®‰è£…å®Œæˆ
+echo   ¡Ì Python ÒÀÀµ°²×°Íê³É
 
-:: â”€â”€ é¢„çƒ­æ¨¡åž‹ï¼ˆå¯é€‰ï¼‰â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ Ô¤ÈÈÄ£ÐÍ£¨¿ÉÑ¡£©©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
-echo æ˜¯å¦çŽ°åœ¨é¢„ä¸‹è½½ FunASR è½¬å†™æ¨¡åž‹ï¼Ÿï¼ˆçº¦ 500MBï¼Œé¦–æ¬¡å¯åŠ¨å¯çœåŽ»ç­‰å¾…ï¼‰
-set /p PREHEAT_CONFIRM=  çŽ°åœ¨é¢„ä¸‹è½½ï¼Ÿ[Y/n]:
+echo ÊÇ·ñÏÖÔÚÔ¤ÏÂÔØ FunASR ×ªÐ´Ä£ÐÍ£¿£¨Ô¼ 500MB£¬Ê×´ÎÆô¶¯¿ÉÊ¡È¥µÈ´ý£©
+set /p PREHEAT_CONFIRM=  ÏÖÔÚÔ¤ÏÂÔØ£¿[Y/n]:
 if /i not "%PREHEAT_CONFIRM%"=="n" (
-    echo   â†’ æ­£åœ¨é¢„ä¸‹è½½æ¨¡åž‹ï¼Œè¯·ä¿æŒç½‘ç»œç•…é€š...
+    echo   ¡ú ÕýÔÚÔ¤ÏÂÔØÄ£ÐÍ£¬Çë±£³ÖÍøÂç³©Í¨...
     "%VENV_PY%" main.py --preheat
     if errorlevel 1 (
-        echo   ! æ¨¡åž‹é¢„ä¸‹è½½å¤±è´¥ï¼Œå¯å¿½ç•¥â€”â€”é¦–æ¬¡å¯åŠ¨æ—¶ä¼šè‡ªåŠ¨é‡è¯•ã€‚
+        echo   ! Ä£ÐÍÔ¤ÏÂÔØÊ§°Ü£¬¿ÉºöÂÔ¡ª¡ªÊ×´ÎÆô¶¯Ê±»á×Ô¶¯ÖØÊÔ¡£
     ) else (
-        echo   âˆš æ¨¡åž‹é¢„ä¸‹è½½å®Œæˆ
+        echo   ¡Ì Ä£ÐÍÔ¤ÏÂÔØÍê³É
     )
 )
 
-:: â”€â”€ 5. åˆ›å»ºå¯åŠ¨è„šæœ¬ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ 5. ´´½¨Æô¶¯½Å±¾ ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
-echo ã€5/5ã€‘åˆ›å»ºå¯åŠ¨å¿«æ·æ–¹å¼...
+echo ¡¾5/5¡¿´´½¨Æô¶¯¿ì½Ý·½Ê½...
 
 if not exist "_launcher_template.bat" (
-    echo   X æœªæ‰¾åˆ° _launcher_template.batï¼Œæ— æ³•ç”Ÿæˆå¯åŠ¨è„šæœ¬ã€‚
+    echo   X Î´ÕÒµ½ _launcher_template.bat£¬ÎÞ·¨Éú³ÉÆô¶¯½Å±¾¡£
     pause
     exit /b 1
 )
-copy /Y "_launcher_template.bat" "å¯åŠ¨.bat" >nul
-echo   âˆš å¯åŠ¨å¿«æ·æ–¹å¼å·²åˆ›å»ºï¼šå¯åŠ¨.bat
+copy /Y "_launcher_template.bat" "Æô¶¯.bat" >nul
+echo   ¡Ì Æô¶¯¿ì½Ý·½Ê½ÒÑ´´½¨£ºÆô¶¯.bat
 
-:: â”€â”€ å®Œæˆ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ Íê³É ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo.
 echo ================================================
-echo   âˆš å®‰è£…å®Œæˆï¼
+echo   ¡Ì °²×°Íê³É£¡
 echo.
-echo   ä»¥åŽä½¿ç”¨æ—¶ï¼ŒåŒå‡»ã€Œå¯åŠ¨.batã€å³å¯ã€‚
+echo   ÒÔºóÊ¹ÓÃÊ±£¬Ë«»÷¡¸Æô¶¯.bat¡¹¼´¿É¡£
 echo.
-echo   é¦–æ¬¡è¿è¡Œæ—¶å·¥å…·ä¼šè‡ªåŠ¨ä¸‹è½½è½¬å†™æ¨¡åž‹ï¼ˆçº¦ 500MBï¼‰ï¼Œ
-echo   è¯·ä¿æŒç½‘ç»œç•…é€šï¼Œè€å¿ƒç­‰å¾…ã€‚
+echo   Ê×´ÎÔËÐÐÊ±¹¤¾ß»á×Ô¶¯ÏÂÔØ×ªÐ´Ä£ÐÍ£¨Ô¼ 500MB£©£¬
+echo   Çë±£³ÖÍøÂç³©Í¨£¬ÄÍÐÄµÈ´ý¡£
 echo ================================================
 echo.
 pause

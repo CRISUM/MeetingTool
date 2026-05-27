@@ -1,43 +1,42 @@
-ï»¿@echo off
-chcp 65001 >nul
+@echo off
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 echo ================================================
-echo   ä¼šè®®å½•éŸ³è½¬å†™å·¥å…· Â· çŽ¯å¢ƒè¯Šæ–­
+echo   »áÒéÂ¼Òô×ªÐ´¹¤¾ß ¡¤ »·¾³Õï¶Ï
 echo ================================================
 echo.
 
-:: â”€â”€ ç³»ç»Ÿ Python â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-echo [ç³»ç»Ÿ Python]
+:: ©¤©¤ ÏµÍ³ Python ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
+echo [ÏµÍ³ Python]
 python --version 2>nul
 if errorlevel 1 (
-    echo   X æœªæ£€æµ‹åˆ°ç³»ç»Ÿ Python
+    echo   X Î´¼ì²âµ½ÏµÍ³ Python
 ) else (
-    for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo   âˆš %%i
+    for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo   ¡Ì %%i
 )
 echo.
 
-:: â”€â”€ ffmpeg â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+:: ©¤©¤ ffmpeg ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 echo [ffmpeg]
 ffmpeg -version >nul 2>&1
 if errorlevel 1 (
-    echo   X æœªæ£€æµ‹åˆ° ffmpeg
+    echo   X Î´¼ì²âµ½ ffmpeg
 ) else (
-    for /f "tokens=1-3" %%a in ('ffmpeg -version 2^>^&1 ^| findstr /b "ffmpeg version"') do echo   âˆš %%a %%b %%c
+    for /f "tokens=1-3" %%a in ('ffmpeg -version 2^>^&1 ^| findstr /b "ffmpeg version"') do echo   ¡Ì %%a %%b %%c
 )
 echo.
 
-:: â”€â”€ venv + ä¾èµ– + PyTorch + ç¼“å­˜ + çŽ¯å¢ƒå˜é‡ â”€â”€â”€â”€
-echo [è™šæ‹ŸçŽ¯å¢ƒ / ä¾èµ– / PyTorch / ç¼“å­˜ / çŽ¯å¢ƒå˜é‡]
+:: ©¤©¤ venv + ÒÀÀµ + PyTorch + »º´æ + »·¾³±äÁ¿ ©¤©¤©¤©¤
+echo [ÐéÄâ»·¾³ / ÒÀÀµ / PyTorch / »º´æ / »·¾³±äÁ¿]
 if exist "venv\Scripts\python.exe" (
     "%~dp0venv\Scripts\python.exe" _diagnose.py
 ) else (
-    echo   X venv\ ä¸å­˜åœ¨ ^(è¯·å…ˆè¿è¡Œã€Œå®‰è£….batã€^)
+    echo   X venv\ ²»´æÔÚ ^(ÇëÏÈÔËÐÐ¡¸°²×°.bat¡¹^)
 )
 echo.
 
 echo ================================================
-echo   è¯Šæ–­å®Œæˆ
+echo   Õï¶ÏÍê³É
 echo ================================================
 pause
